@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Profil Dokter</title>
+
 <style>
 body {
 font-family: Arial, sans-serif;
@@ -13,6 +14,7 @@ align-items: center;
 height: 100vh;
 margin: 0;
 }
+
 .card {
 background: #ffffff;
 width: 420px;
@@ -21,25 +23,30 @@ border-radius: 12px;
 box-shadow: 0 6px 18px rgba(0,0,0,0.15);
 text-align: center;
 }
+
 img.foto {
 width: 160px;
-height: auto;
 border-radius: 10px;
 margin-bottom: 15px;
 }
+
 h2 {
 margin: 10px 0 5px 0;
 }
+
 p {
 margin: 6px 0;
 font-size: 14px;
 }
+
 .label {
 font-weight: bold;
 }
+
 .qr {
 margin-top: 15px;
 }
+
 .footer {
 margin-top: 15px;
 font-size: 12px;
@@ -47,28 +54,36 @@ color: gray;
 }
 </style>
 </head>
+
 <body>
 
 <div class="card">
 
-<!-- Ganti nama file foto sesuai file upload -->
-<img src="foto-dr-ismawanty.png" class="foto" alt="Foto Dokter">
+<!-- GANTI FOTO -->
+<img src="foto dokter isma.png" class="foto" alt="Foto Dokter">
 
-<h2>dr. Ismawanty Mustain, Sp.OG., M.Kes., MARS.</h2>
+<h2>dr. Ismawanty Mustain, Sp.OG., M.Kes</h2>
 
-<p><span class="label">SIP:</span> ISI NOMOR SIP</p>
-<p><span class="label">STR:</span> ISI NOMOR STR</p>
-<p><span class="label">Berlaku sampai:</span> ISI TANGGAL BERLAKU</p>
+<p><span class="label">SIP:</span> 446/0079/DPM-PTSP/IX/2022</p>
+
+<p><span class="label">STR:</span> 73.2.1.301.4.22-101471</p>
+
+<p><span class="label">STR Berlaku s/d:</span> 06 September 2027</p>
+
+<p><span class="label">SIP Berlaku s/d:</span> 06 September 2027</p>
+
 <p><span class="label">Tempat Praktik:</span><br>
-Klinik Utama Budi Medika Pomalaa</p>
+RSIA Budi Medika Kolaka</p>
 
 <div class="qr">
 <h3>QR Profil Dokter</h3>
-<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://klinikbmpomalaa-ship-it.github.io/profil-dokter/dr-ismawanty.html" alt="QR Profil">
+
+<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://klinikbmpomalaa-ship-it.github.io/profil-dokter/dr-ismawanty.html">
+
 </div>
 
 <div class="footer">
-Profil Resmi Dokter – Klinik Utama Budi Medika Pomalaa
+Profil Resmi Dokter – RSIA Budi Medika Kolaka
 </div>
 
 </div>
