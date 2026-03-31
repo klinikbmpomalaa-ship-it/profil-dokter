@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlipBook Studio</title>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0e0c0a;
+    --surface: #1a1714;
+    --surface2: #252118;
+    --accent: #c8a96e;
+    --accent2: #e8c98e;
+    --text: #f0ebe3;
+    --text-dim: #8a7f6e;
+    --shadow: rgba(0,0,0,0.7);
+    --page-shadow: rgba(0,0,0,0.5);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 36px;
+    background: var(--surface);
+    border-bottom: 1px solid rgba(200,169,110,0.2);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+  .logo span { color: var(--text-dim); font-size: 0.8rem; display: block; font-family: 'DM Sans', sans-serif; font-weight: 300; }
+
+  /* ── UPLOAD ZONE ── */
+  #upload-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 65px);
+    padding: 40px 20px;
+    position: relative;
+  }
+
+  .upload-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 60%, rgba(200,169,110,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .upload-card {
+    background: var(--surface);
+    border: 2px dashed rgba(200,169,110,0.35);
+    border-radius: 24px;
+    padding: 60px 80px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.35s ease;
+    max-width: 580px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+  }
+  .upload-card:hover, .upload-card.drag-over {
+    border-color: var(--accent);
+    background: var(--surface2);
+    transform: translateY(-4px);
+    box-shadow: 0 30px 80px rgba(200,169,110,0.15);
+  }
+
+  .upload-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    display: block;
+    filter: drop-shadow(0 0 20px rgba(200,169,110,0.4));
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .upload-card h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.9rem;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .upload-card p { color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; }
+  .upload-card .hint { font-size: 0.78rem; margin-top: 20px; color: rgba(200,169,110,0.6); }
+
+  #file-input { display: none; }
+
+  .btn {
+    display: inline-block;
+    margin-top: 28px;
+    padding: 14px 36px;
+    background: var(--accent);
+    color: #1a1510;
+    border: none;
+    border-radius: 50px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    letter-spacing: 0.04em;
+  }
+  .btn:hover { background: var(--accent2); transform: scale(1.04); }
+
+  /* ── PROGRESS ── */
+  #progress-section {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 65px);
+    gap: 24px;
+  }
+  .progress-bar-wrap {
+    width: 320px;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+  #progress-text { color: var(--text-dim); font-size: 0.9rem; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid rgba(200,169,110,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── VIEWER ── */
+  #viewer-section {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    min-height: calc(100vh - 65px);
+    padding: 30px 20px 60px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(200,169,110,0.05) 0%, transparent 65%);
+  }
+
+  .viewer-meta {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .viewer-meta h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .viewer-meta p { color: var(--text-dim); font-size: 0.85rem; }
+
+  /* ── BOOK CONTAINER ── */
+  .book-stage {
+    perspective: 2500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    position: relative;
+  }
+
+  .book-wrap {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.6));
+  }
+
+  /* Each page half */
+  .page-side {
+    width: var(--page-w);
+    height: var(--page-h);
+    overflow: hidden;
+    position: relative;
+    background: #1a1714;
+  }
+  .page-side canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Book spine shadow */
+  .spine {
+    width: 14px;
+    background: linear-gradient(to right, #0a0906, #2a2218, #0a0906);
+    flex-shrink: 0;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    position: relative;
+    z-index: 5;
+  }
+
+  /* ── FLIP ANIMATION ── */
+  .flip-container {
+    position: absolute;
+    top: 0;
+    width: var(--page-w);
+    height: var(--page-h);
+    perspective: 2000px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .flip-container.left-flip { left: 0; transform-origin: right center; }
+  .flip-container.right-flip { right: 0; transform-origin: left center; }
+
+  .flip-page {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform-origin: inherit;
+    overflow: hidden;
+    background: #1a1714;
+  }
+  .flip-page canvas { width: 100% !important; height: 100% !important; display: block; }
+
+  /* Page curl shadow overlay */
+  .page-curl-shadow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(0,0,0,0.4) 0%, transparent 40%);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  /* Page number label */
+  .page-num-label {
+    position: absolute;
+    bottom: 12px;
+    font-size: 0.72rem;
+    color: rgba(200,169,110,0.5);
+    letter-spacing: 0.1em;
+  }
+  .page-side:first-child .page-num-label { left: 20px; }
+  .page-side:last-child .page-num-label { right: 20px; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .ctrl-btn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid rgba(200,169,110,0.25);
+    color: var(--accent);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .ctrl-btn:hover:not(:disabled) {
+    background: var(--surface2);
+    border-color: var(--accent);
+    transform: scale(1.08);
+  }
+  .ctrl-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .page-indicator {
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    background: var(--surface);
+    padding: 10px 22px;
+    border-radius: 50px;
+    border: 1px solid rgba(200,169,110,0.15);
+    letter-spacing: 0.05em;
+  }
+
+  /* Zoom controls */
+  .zoom-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid rgba(200,169,110,0.15);
+    border-radius: 50px;
+    padding: 6px 12px;
+  }
+  .zoom-btn {
+    width: 28px; height: 28px;
+    border: none; background: none;
+    color: var(--accent);
+    font-size: 1rem; cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .zoom-btn:hover { background: rgba(200,169,110,0.1); }
+  .zoom-val { color: var(--text-dim); font-size: 0.8rem; min-width: 36px; text-align: center; }
+
+  /* Thumbnail strip */
+  .thumb-strip {
+    display: flex;
+    gap: 10px;
+    margin-top: 28px;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 10px 10px 14px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200,169,110,0.3) transparent;
+  }
+  .thumb-item {
+    flex-shrink: 0;
+    width: 72px;
+    cursor: pointer;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+  .thumb-item:hover { border-color: rgba(200,169,110,0.5); transform: scale(1.05); }
+  .thumb-item.active { border-color: var(--accent); }
+  .thumb-item canvas { width: 100% !important; height: auto !important; display: block; }
+  .thumb-num { text-align: center; font-size: 0.6rem; color: var(--text-dim); padding: 3px 0; }
+
+  /* ── new book btn ── */
+  .new-btn {
+    background: transparent;
+    border: 1px solid rgba(200,169,110,0.35);
+    color: var(--accent);
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .new-btn:hover { background: rgba(200,169,110,0.08); }
+
+  /* ── FULLSCREEN ── */
+  #fs-btn { font-size: 1rem; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    header { padding: 14px 20px; }
+    .upload-card { padding: 40px 28px; }
+    .upload-card h2 { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    📖 FlipBook Studio
+    <span>PDF to Animated Flipbook</span>
+  </div>
+  <button class="new-btn" id="reset-btn" style="display:none">+ Buku Baru</button>
+</header>
+
+<!-- UPLOAD SECTION -->
+<section id="upload-section">
+  <div class="upload-bg"></div>
+  <div class="upload-card" id="drop-zone">
+    <span class="upload-icon">📄</span>
+    <h2>Upload Dokumen PDF</h2>
+    <p>Seret & lepas file PDF ke sini,<br>atau klik tombol di bawah untuk memilih file.</p>
+    <p class="hint">Format: PDF · Semua ukuran halaman didukung</p>
+    <button class="btn" onclick="document.getElementById('file-input').click()">Pilih File PDF</button>
+    <input type="file" id="file-input" accept=".pdf,application/pdf">
+  </div>
+</section>
+
+<!-- PROGRESS SECTION -->
+<section id="progress-section">
+  <div class="spinner"></div>
+  <p id="progress-text">Memproses PDF...</p>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+</section>
+
+<!-- VIEWER SECTION -->
+<section id="viewer-section">
+  <div class="viewer-meta">
+    <h2 id="book-title">Judul Buku</h2>
+    <p id="book-info"></p>
+  </div>
+
+  <div class="book-stage" id="book-stage">
+    <div class="book-wrap" id="book-wrap">
+      <!-- left page -->
+      <div class="page-side" id="left-page">
+        <canvas id="canvas-left"></canvas>
+        <span class="page-num-label" id="label-left"></span>
+        <div class="page-curl-shadow" id="curl-left"></div>
+      </div>
+      <!-- spine -->
+      <div class="spine"></div>
+      <!-- right page -->
+      <div class="page-side" id="right-page">
+        <canvas id="canvas-right"></canvas>
+        <span class="page-num-label" id="label-right"></span>
+        <div class="page-curl-shadow" id="curl-right" style="background: linear-gradient(to left, rgba(0,0,0,0.4) 0%, transparent 40%)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn" id="first-btn" title="Halaman Pertama">⏮</button>
+    <button class="ctrl-btn" id="prev-btn" title="Sebelumnya">◀</button>
+    <div class="page-indicator" id="page-indicator">1 / 1</div>
+    <button class="ctrl-btn" id="next-btn" title="Selanjutnya">▶</button>
+    <button class="ctrl-btn" id="last-btn" title="Halaman Terakhir">⏭</button>
+    <div class="zoom-group">
+      <button class="zoom-btn" id="zoom-out">−</button>
+      <span class="zoom-val" id="zoom-val">100%</span>
+      <button class="zoom-btn" id="zoom-in">+</button>
+    </div>
+    <button class="ctrl-btn" id="fs-btn" title="Layar Penuh">⛶</button>
+  </div>
+
+  <!-- Thumbnail strip -->
+  <div class="thumb-strip" id="thumb-strip"></div>
+</section>
+
+<script>
+// ── PDF.js worker ──
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ──
+let pdfDoc = null;
+let totalPages = 0;
+let currentSpread = 0; // spread index (0 = cover, each spread = 2 pages)
+let pages = []; // rendered page canvases
+let thumbCanvases = [];
+let isAnimating = false;
+let zoom = 1.0;
+let baseW = 0, baseH = 0;
+
+const PAGE_W_BASE = 380;
+const PAGE_H_BASE = 540;
+
+// ── Elements ──
+const uploadSection  = document.getElementById('upload-section');
+const progressSection= document.getElementById('progress-section');
+const viewerSection  = document.getElementById('viewer-section');
+const progressBar    = document.getElementById('progress-bar');
+const progressText   = document.getElementById('progress-text');
+const fileInput      = document.getElementById('file-input');
+const dropZone       = document.getElementById('drop-zone');
+const bookStage      = document.getElementById('book-stage');
+const bookWrap       = document.getElementById('book-wrap');
+const canvasLeft     = document.getElementById('canvas-left');
+const canvasRight    = document.getElementById('canvas-right');
+const leftPage       = document.getElementById('left-page');
+const rightPage      = document.getElementById('right-page');
+const labelLeft      = document.getElementById('label-left');
+const labelRight     = document.getElementById('label-right');
+const curlLeft       = document.getElementById('curl-left');
+const curlRight      = document.getElementById('curl-right');
+const pageIndicator  = document.getElementById('page-indicator');
+const thumbStrip     = document.getElementById('thumb-strip');
+const resetBtn       = document.getElementById('reset-btn');
+const bookTitle      = document.getElementById('book-title');
+const bookInfo       = document.getElementById('book-info');
+const zoomVal        = document.getElementById('zoom-val');
+
+// ── File Input ──
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadPDF(e.target.files[0]);
+});
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') loadPDF(f);
+});
+
+// ── Load PDF ──
+async function loadPDF(file) {
+  show(progressSection);
+  hide(uploadSection);
+
+  progressText.textContent = 'Membaca file PDF...';
+  progressBar.style.width = '5%';
+
+  const arrayBuffer = await file.arrayBuffer();
+  pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  totalPages = pdfDoc.numPages;
+  pages = new Array(totalPages).fill(null);
+  thumbCanvases = new Array(totalPages).fill(null);
+
+  // Render first page to get dimensions
+  const firstPage = await pdfDoc.getPage(1);
+  const vp0 = firstPage.getViewport({ scale: 1 });
+  const ratio = vp0.height / vp0.width;
+  baseW = PAGE_W_BASE;
+  baseH = Math.round(PAGE_W_BASE * ratio);
+
+  // Set CSS variables
+  setCSSPageSize();
+
+  bookTitle.textContent = file.name.replace(/\.pdf$/i, '');
+  bookInfo.textContent  = `${totalPages} halaman`;
+
+  // Render all pages (scaled)
+  for (let i = 1; i <= totalPages; i++) {
+    const pct = Math.round((i / totalPages) * 90) + 5;
+    progressBar.style.width = pct + '%';
+    progressText.textContent = `Memuat halaman ${i} dari ${totalPages}...`;
+    await renderPageToCanvas(i);
+    buildThumb(i);
+  }
+
+  progressBar.style.width = '100%';
+  progressText.textContent = 'Selesai!';
+  await delay(400);
+
+  currentSpread = 0;
+  show(viewerSection);
+  hide(progressSection);
+  resetBtn.style.display = 'block';
+  drawSpread(currentSpread);
+  buildThumbStrip();
+
+  // Keyboard
+  document.addEventListener('keydown', onKey);
+}
+
+function setCSSPageSize() {
+  const pw = Math.round(baseW * zoom);
+  const ph = Math.round(baseH * zoom);
+  document.documentElement.style.setProperty('--page-w', pw + 'px');
+  document.documentElement.style.setProperty('--page-h', ph + 'px');
+}
+
+// ── Render page to offscreen canvas ──
+async function renderPageToCanvas(pageNum) {
+  const page = await pdfDoc.getPage(pageNum);
+  const scale = (baseW / page.getViewport({ scale: 1 }).width) * 2; // 2x for sharpness
+  const vp = page.getViewport({ scale });
+  const c = document.createElement('canvas');
+  c.width  = vp.width;
+  c.height = vp.height;
+  await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+  pages[pageNum - 1] = c;
+}
+
+// ── Draw current spread ──
+function drawSpread(spreadIdx) {
+  const [lp, rp] = spreadPages(spreadIdx);
+
+  drawOntoCanvas(canvasLeft,  lp, leftPage);
+  drawOntoCanvas(canvasRight, rp, rightPage);
+
+  labelLeft.textContent  = lp ? `${lp}` : '';
+  labelRight.textContent = rp ? `${rp}` : '';
+
+  // indicator
+  const total = totalSpread();
+  pageIndicator.textContent = `Halaman ${spreadPageDesc(spreadIdx)} · Buku ${spreadIdx + 1}/${total}`;
+
+  // thumbs active
+  document.querySelectorAll('.thumb-item').forEach((el, i) => {
+    el.classList.toggle('active', i === spreadIdx);
+  });
+
+  // btn states
+  document.getElementById('prev-btn').disabled  = spreadIdx === 0;
+  document.getElementById('first-btn').disabled = spreadIdx === 0;
+  document.getElementById('next-btn').disabled  = spreadIdx >= total - 1;
+  document.getElementById('last-btn').disabled  = spreadIdx >= total - 1;
+
+  // scroll active thumb into view
+  const activeThumb = thumbStrip.children[spreadIdx];
+  if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+function spreadPages(spreadIdx) {
+  // spread 0 = [null, page1] (cover only on right)
+  // spread 1 = [page2, page3], spread 2 = [page4, page5], ...
+  if (spreadIdx === 0) return [null, 1];
+  const left  = spreadIdx * 2;
+  const right = spreadIdx * 2 + 1;
+  return [
+    left  <= totalPages ? left  : null,
+    right <= totalPages ? right : null,
+  ];
+}
+
+function spreadPageDesc(spreadIdx) {
+  const [l, r] = spreadPages(spreadIdx);
+  if (!l && r) return `${r}`;
+  if (l && !r) return `${l}`;
+  if (l && r) return `${l}–${r}`;
+  return '—';
+}
+
+function totalSpread() {
+  return Math.ceil((totalPages - 1) / 2) + 1;
+}
+
+function drawOntoCanvas(canvas, pageNum, container) {
+  const ctx = canvas.getContext('2d');
+  const pw = Math.round(baseW * zoom);
+  const ph = Math.round(baseH * zoom);
+  canvas.width  = pw * 2; // hidpi
+  canvas.height = ph * 2;
+  canvas.style.width  = pw + 'px';
+  canvas.style.height = ph + 'px';
+  container.style.width  = pw + 'px';
+  container.style.height = ph + 'px';
+
+  ctx.scale(2, 2);
+  if (!pageNum || !pages[pageNum - 1]) {
+    // blank / cover
+    ctx.fillStyle = '#1a1714';
+    ctx.fillRect(0, 0, pw, ph);
+    if (!pageNum) {
+      ctx.fillStyle = 'rgba(200,169,110,0.08)';
+      ctx.fillRect(0, 0, pw, ph);
+    }
+    return;
+  }
+  const src = pages[pageNum - 1];
+  ctx.drawImage(src, 0, 0, pw, ph);
+}
+
+// ── Flip Animation ──
+async function flipTo(targetSpread, direction) {
+  if (isAnimating) return;
+  isAnimating = true;
+
+  const dur = 600; // ms
+
+  // Create temp flip element
+  const flipEl = document.createElement('div');
+  flipEl.className = `flip-container ${direction === 'next' ? 'right-flip' : 'left-flip'}`;
+
+  const flipPage = document.createElement('div');
+  flipPage.className = 'flip-page';
+
+  // Canvas for the flipping face
+  const fc = document.createElement('canvas');
+  const pIdx = direction === 'next'
+    ? spreadPages(currentSpread)[1]  // right page flips away
+    : spreadPages(targetSpread)[0];  // left page flips in reverse
+
+  const pw = Math.round(baseW * zoom);
+  const ph = Math.round(baseH * zoom);
+  fc.width  = pw * 2;
+  fc.height = ph * 2;
+  fc.style.width  = pw + 'px';
+  fc.style.height = ph + 'px';
+  const fctx = fc.getContext('2d');
+  fctx.scale(2, 2);
+  if (pIdx && pages[pIdx - 1]) fctx.drawImage(pages[pIdx - 1], 0, 0, pw, ph);
+  else { fctx.fillStyle = '#1a1714'; fctx.fillRect(0, 0, pw, ph); }
+
+  flipPage.appendChild(fc);
+  flipEl.appendChild(flipPage);
+  bookWrap.appendChild(flipEl);
+
+  // Animate
+  const startTime = performance.now();
+  const rotStart = direction === 'next' ? 0 : 0;
+  const rotEnd   = direction === 'next' ? -180 : 180;
+
+  flipEl.style.transformOrigin = direction === 'next' ? 'left center' : 'right center';
+  flipEl.style.position = 'absolute';
+  flipEl.style.top = '0';
+  flipEl.style[direction === 'next' ? 'right' : 'left'] = '7px'; // spine offset
+
+  const curl = direction === 'next' ? curlRight : curlLeft;
+
+  function frame(now) {
+    const t = Math.min((now - startTime) / dur, 1);
+    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+    const rot = rotStart + (rotEnd - rotStart) * ease;
+
+    flipEl.style.transform = `perspective(2000px) rotateY(${rot}deg)`;
+
+    // Midpoint: swap underlying pages
+    if (t >= 0.5 && flipEl.dataset.swapped !== '1') {
+      flipEl.dataset.swapped = '1';
+      currentSpread = targetSpread;
+      drawSpread(currentSpread);
+    }
+
+    // curl shadow
+    const progress = Math.abs(rot) / 180;
+    curl.style.opacity = progress < 0.5 ? progress * 1.5 : (1 - progress) * 1.5;
+
+    if (t < 1) requestAnimationFrame(frame);
+    else {
+      bookWrap.removeChild(flipEl);
+      curl.style.opacity = 0;
+      isAnimating = false;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+// ── Navigation ──
+document.getElementById('next-btn').addEventListener('click', async () => {
+  const target = currentSpread + 1;
+  if (target < totalSpread()) {
+    await flipTo(target, 'next');
+    updateThumbActive();
+  }
+});
+document.getElementById('prev-btn').addEventListener('click', async () => {
+  const target = currentSpread - 1;
+  if (target >= 0) {
+    await flipTo(target, 'prev');
+    updateThumbActive();
+  }
+});
+document.getElementById('first-btn').addEventListener('click', () => {
+  if (!isAnimating) { currentSpread = 0; drawSpread(0); }
+});
+document.getElementById('last-btn').addEventListener('click', () => {
+  if (!isAnimating) { currentSpread = totalSpread()-1; drawSpread(currentSpread); }
+});
+
+function updateThumbActive() {
+  document.querySelectorAll('.thumb-item').forEach((el, i) => {
+    el.classList.toggle('active', i === currentSpread);
+  });
+}
+
+function onKey(e) {
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') document.getElementById('next-btn').click();
+  if (e.key === 'ArrowLeft'  || e.key === 'PageUp')   document.getElementById('prev-btn').click();
+}
+
+// ── Thumbnails ──
+function buildThumb(pageNum) {
+  const src = pages[pageNum - 1];
+  if (!src) return;
+  const tc = document.createElement('canvas');
+  tc.width  = 144;
+  tc.height = Math.round(144 * baseH / baseW);
+  tc.getContext('2d').drawImage(src, 0, 0, tc.width, tc.height);
+  thumbCanvases[pageNum - 1] = tc;
+}
+
+function buildThumbStrip() {
+  thumbStrip.innerHTML = '';
+  const total = totalSpread();
+  for (let s = 0; s < total; s++) {
+    const [lp, rp] = spreadPages(s);
+    const item = document.createElement('div');
+    item.className = 'thumb-item' + (s === 0 ? ' active' : '');
+
+    // Use right page canvas for single cover, left for others
+    const pIdx = (lp || rp) - 1;
+    if (thumbCanvases[pIdx]) {
+      item.appendChild(thumbCanvases[pIdx].cloneNode(true)); // lightweight clone
+    }
+    const num = document.createElement('div');
+    num.className = 'thumb-num';
+    num.textContent = spreadPageDesc(s);
+    item.appendChild(num);
+
+    item.addEventListener('click', () => {
+      if (!isAnimating) { currentSpread = s; drawSpread(s); }
+    });
+    thumbStrip.appendChild(item);
+  }
+}
+
+// ── Zoom ──
+document.getElementById('zoom-in').addEventListener('click', () => {
+  if (zoom < 1.8) { zoom = Math.min(zoom + 0.2, 1.8); applyZoom(); }
+});
+document.getElementById('zoom-out').addEventListener('click', () => {
+  if (zoom > 0.5) { zoom = Math.max(zoom - 0.2, 0.5); applyZoom(); }
+});
+function applyZoom() {
+  zoomVal.textContent = Math.round(zoom * 100) + '%';
+  setCSSPageSize();
+  drawSpread(currentSpread);
+}
+
+// ── Fullscreen ──
+document.getElementById('fs-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) viewerSection.requestFullscreen();
+  else document.exitFullscreen();
+});
+
+// ── Reset ──
+resetBtn.addEventListener('click', () => {
+  pdfDoc = null; pages = []; thumbCanvases = [];
+  currentSpread = 0; zoom = 1.0;
+  thumbStrip.innerHTML = '';
+  zoomVal.textContent = '100%';
+  fileInput.value = '';
+  document.removeEventListener('keydown', onKey);
+  hide(viewerSection);
+  show(uploadSection);
+  resetBtn.style.display = 'none';
+});
+
+// ── Helpers ──
+function show(el) { el.style.display = 'flex'; }
+function hide(el) { el.style.display = 'none'; }
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
+
+# 📖 FlipBook Studio
+
+Aplikasi web untuk menampilkan dokumen PDF sebagai buku digital dengan animasi balik halaman yang realistis — mirip FlipHTML5.
+
+## ✨ Fitur
+
+- 📄 Upload PDF langsung di browser (tidak perlu server)
+- 🎬 Animasi flip halaman 3D yang halus
+- 🔍 Zoom in/out (50% – 180%)
+- 🖼️ Thumbnail strip navigasi cepat
+- ⌨️ Navigasi keyboard (← →)
+- ⛶ Mode layar penuh (fullscreen)
+- 📱 Responsif di mobile
+- 🔒 100% client-side — PDF tidak dikirim ke server manapun
+
+## 🚀 Hosting di GitHub Pages
+
+### Langkah 1 — Buat Repository
+1. Login ke [github.com](https://github.com)
+2. Klik **New repository**
+3. Beri nama, misal: `flipbook-studio`
+4. Centang **"Add a README file"** → klik **Create repository**
+
+### Langkah 2 — Upload File
+1. Di halaman repository, klik **Add file → Upload files**
+2. Upload file `index.html` ini
+3. Klik **Commit changes**
+
+### Langkah 3 — Aktifkan GitHub Pages
+1. Buka **Settings** repository
+2. Scroll ke bagian **Pages** (sidebar kiri)
+3. Di **Source**, pilih branch `main` dan folder `/ (root)`
+4. Klik **Save**
+5. Tunggu 1–2 menit, lalu akses di:
+   ```
+   https://USERNAME.github.io/NAMA-REPO/
+   ```
+
+## 📁 Struktur File
+
+```
+flipbook-studio/
+└── index.html      ← satu file, semua sudah terintegrasi
+```
+
+## 🛠️ Teknologi
+
+- **PDF.js** (Mozilla) — untuk membaca & merender PDF
+- **Vanilla JS + CSS** — animasi flip 3D murni tanpa library tambahan
+- **HTML5 Canvas** — rendering halaman berkualitas tinggi
+
+## 📝 Lisensi
+
+MIT — bebas digunakan dan dimodifikasi.
